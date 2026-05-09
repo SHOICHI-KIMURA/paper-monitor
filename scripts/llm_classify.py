@@ -88,7 +88,8 @@ why_important_for_ent は以下の3行にしてください:
   "clinical_impact": "high|middle|low",
   "recommendation": "必読|要約保存|スキップ",
   "japanese_summary_3lines": ["...", "...", "..."],
-  "why_important_for_ent": ["...", "...", "..."],
+  "ent_reading_points": ["...", "...", "..."],
+  "limitations_or_cautions": ["...", "..."]
   "keywords": ["...", "..."],
   "confidence": 0.0
 }}
