@@ -3,9 +3,11 @@ from __future__ import annotations
 import logging
 import os
 
-from .notion_client import get_notion_client
+import requests
 
 LOGGER = logging.getLogger(__name__)
+NOTION_API_BASE = "https://api.notion.com/v1"
+NOTION_VERSION = "2022-06-28"
 
 
 def save_papers_to_notion(papers: list[dict]) -> list[dict]:
@@ -13,31 +15,62 @@ def save_papers_to_notion(papers: list[dict]) -> list[dict]:
     if not database_id:
         raise RuntimeError("NOTION_DATABASE_ID is not set")
 
-    notion = get_notion_client()
     saved = []
     for paper in papers:
         pmid = paper.get("pmid", "")
         if not pmid:
             continue
-        if _exists(notion, database_id, pmid):
+        if _exists(database_id, pmid):
             LOGGER.info("Skipping duplicate PMID=%s", pmid)
             paper["notion_status"] = "duplicate"
             saved.append(paper)
             continue
-        notion.pages.create(parent={"database_id": database_id}, properties=_properties(paper))
+        _create_page(database_id, paper)
         paper["notion_status"] = "created"
         saved.append(paper)
         LOGGER.info("Created Notion page for PMID=%s", pmid)
     return saved
 
 
-def _exists(notion, database_id: str, pmid: str) -> bool:
-    response = notion.databases.query(
-        database_id=database_id,
-        filter={"property": "PMID", "rich_text": {"equals": pmid}},
-        page_size=1,
+def _exists(database_id: str, pmid: str) -> bool:
+    response = requests.post(
+        f"{NOTION_API_BASE}/databases/{database_id}/query",
+        headers=_headers(),
+        json={
+            "filter": {
+                "property": "PMID",
+                "rich_text": {"equals": pmid},
+            },
+            "page_size": 1,
+        },
+        timeout=30,
     )
-    return bool(response.get("results"))
+    response.raise_for_status()
+    return bool(response.json().get("results"))
+
+
+def _create_page(database_id: str, paper: dict) -> None:
+    response = requests.post(
+        f"{NOTION_API_BASE}/pages",
+        headers=_headers(),
+        json={
+            "parent": {"database_id": database_id},
+            "properties": _properties(paper),
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+
+
+def _headers() -> dict:
+    token = os.getenv("NOTION_TOKEN")
+    if not token:
+        raise RuntimeError("NOTION_TOKEN is not set")
+    return {
+        "Authorization": f"Bearer {token}",
+        "Notion-Version": NOTION_VERSION,
+        "Content-Type": "application/json",
+    }
 
 
 def _properties(paper: dict) -> dict:
