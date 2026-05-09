@@ -90,17 +90,20 @@ def _card(paper: dict) -> str:
     recommendation = c.get("recommendation", "スキップ")
     cls = {"必読": "must", "要約保存": "keep"}.get(recommendation, "skip")
     summary = "".join(f"<li>{html.escape(line)}</li>" for line in c.get("japanese_summary_3lines", []) if line)
-    why = "".join(f"<li>{html.escape(line)}</li>" for line in c.get("why_important_for_ent", []) if line)
+reading_points = "".join(f"<li>{html.escape(line)}</li>" for line in c.get("ent_reading_points", c.get("why_important_for_ent", [])) if line)
+cautions = "".join(f"<li>{html.escape(line)}</li>" for line in c.get("limitations_or_cautions", []) if line)
     return f"""<article class="card {cls}">
   <h2>{html.escape(paper.get("title", ""))}</h2>
   <div class="journal">
     <span class="badge">{html.escape(recommendation)}</span>
     {html.escape(paper.get("journal", ""))} / IF {paper.get("impact_factor", "")} / {html.escape(paper.get("pub_date", ""))}
   </div>
-  <strong>3行要約</strong>
+    <strong>3行要約</strong>
   <ul>{summary}</ul>
-  <strong>なぜENTで重要か</strong>
-  <ul>{why}</ul>
+  <strong>ENTでの読みどころ</strong>
+  <ul>{reading_points}</ul>
+  <strong>限界・注意点</strong>
+  <ul>{cautions or "<li>抄録情報からは明確な限界を判断できません。</li>"}</ul>
   <a href="{html.escape(paper.get("url", ""))}" target="_blank" rel="noopener">論文ページを開く</a>
 </article>"""
 
