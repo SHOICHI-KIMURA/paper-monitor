@@ -1,0 +1,30 @@
+max_results: 200
+lookback_days: 7
+
+ent_keywords:
+  - otolaryngology
+  - otorhinolaryngology
+  - head and neck cancer
+  - head and neck neoplasms
+  - thyroid cancer
+  - salivary gland
+  - rhinology
+  - chronic rhinosinusitis
+  - allergic rhinitis
+  - airway
+  - dysphagia
+  - hearing loss
+  - vestibular
+  - vertigo
+  - microbiome
+  - artificial intelligence imaging
+
+if50_extra_terms:
+  - cancer
+  - allergy
+  - airway
+  - microbiome
+  - imaging
+  - artificial intelligence
+  - hearing
+  - dysphagia

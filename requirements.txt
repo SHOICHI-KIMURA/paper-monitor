@@ -1,0 +1,5 @@
+requests>=2.31
+pyyaml>=6.0
+notion-client>=2.2
+python-dotenv>=1.0
+jinja2>=3.1

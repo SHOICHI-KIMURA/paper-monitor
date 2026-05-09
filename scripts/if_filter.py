@@ -1,0 +1,49 @@
+from __future__ import annotations
+
+import csv
+import logging
+import re
+from pathlib import Path
+
+LOGGER = logging.getLogger(__name__)
+
+
+def normalize_journal(value: str) -> str:
+    return re.sub(r"\s+", " ", (value or "").strip().lower())
+
+
+def load_journals(path: str | Path) -> list[dict]:
+    with open(path, newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    for row in rows:
+        row["if"] = float(row["if"])
+        row["normalized_journal"] = normalize_journal(row["journal"])
+    return rows
+
+
+def attach_if_metadata(papers: list[dict], journals: list[dict]) -> list[dict]:
+    by_journal = {row["normalized_journal"]: row for row in journals}
+    matched = []
+    for paper in papers:
+        journal_key = normalize_journal(paper.get("journal", ""))
+        meta = by_journal.get(journal_key)
+        if not meta:
+            continue
+        enriched = {
+            **paper,
+            "impact_factor": meta["if"],
+            "tier": meta["tier"],
+            "track": meta.get("track", ""),
+            "configured_journal": meta["journal"],
+        }
+        matched.append(enriched)
+    LOGGER.info("IF filter matched %d/%d papers", len(matched), len(papers))
+    return matched
+
+
+def keep_after_classification(paper: dict) -> bool:
+    tier = paper.get("tier")
+    if tier == "IF50":
+        return True
+    classification = paper.get("classification") or {}
+    return tier == "IF10" and classification.get("ent_relevance") in {"high", "middle"}
