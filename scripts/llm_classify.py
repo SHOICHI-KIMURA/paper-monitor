@@ -54,7 +54,7 @@ recommendation:
 """
 
 
-USER_TEMPLATE = """USER_TEMPLATE = """以下の論文を分類してください。
+USER_TEMPLATE = """以下の論文を分類してください。
 
 PMID: {pmid}
 Title: {title}
@@ -68,10 +68,14 @@ japanese_summary_3lines は以下の3行にしてください:
 2行目: 主な結果または論点。数値が抄録にある場合は入れる。なければ作らない。
 3行目: 何が新しいか、または既存知識に対して何を足したか。
 
-why_important_for_ent は以下の3行にしてください:
+ent_reading_points は以下の3行にしてください:
 1行目: ENTのどの領域に関係するか。
 2行目: 診療・手術・薬物療法・患者説明・研究設計のどこに効くか。
-3行目: 注意点、限界、または「今すぐ読むべき理由」。情報不足なら判断保留と書く。
+3行目: 今すぐ読むべき理由、または研究・臨床で拾うべき視点。
+
+limitations_or_cautions は以下の2行にしてください:
+1行目: 研究デザイン、対象、アウトカム、一般化可能性などの限界。
+2行目: 抄録情報だけでは判断できない点、または臨床応用前に注意すべき点。
 
 避ける表現:
 - 「重要です」だけで終わる文
@@ -87,13 +91,12 @@ why_important_for_ent は以下の3行にしてください:
   "recommendation": "必読|要約保存|スキップ",
   "japanese_summary_3lines": ["...", "...", "..."],
   "ent_reading_points": ["...", "...", "..."],
-  "limitations_or_cautions": ["...", "..."]
+  "limitations_or_cautions": ["...", "..."],
   "keywords": ["...", "..."],
   "confidence": 0.0
 }}
 """
 
-"""
 
 
 def classify_paper(paper: dict, model: str | None = None) -> dict[str, Any]:
@@ -182,7 +185,9 @@ def _validate_classification(data: dict[str, Any]) -> dict[str, Any]:
         "recommendation": data.get("recommendation", "スキップ"),
         "japanese_summary_3lines": _list3(data.get("japanese_summary_3lines")),
         "why_important_for_ent": _list3(data.get("why_important_for_ent")),
-        "keywords": _list(data.get("keywords"))[:8],
+"ent_reading_points": _list3(data.get("ent_reading_points")),
+"limitations_or_cautions": _list(data.get("limitations_or_cautions"))[:2],
+"keywords": _list(data.get("keywords"))[:8],
         "confidence": data.get("confidence", 0.0),
     }
     for key, allowed in ALLOWED.items():
