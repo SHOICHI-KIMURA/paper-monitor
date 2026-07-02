@@ -1,30 +1,79 @@
 max_results: 200
 lookback_days: 7
 
-ent_keywords:
-  - otolaryngology
-  - otorhinolaryngology
-  - head and neck cancer
-  - head and neck neoplasms
-  - thyroid cancer
-  - salivary gland
-  - rhinology
-  - chronic rhinosinusitis
-  - allergic rhinitis
-  - airway
-  - dysphagia
-  - hearing loss
-  - vestibular
-  - vertigo
-  - microbiome
-  - artificial intelligence imaging
+# ============================================================
+# 検索クエリ（PubMedキーワード）
+# ------------------------------------------------------------
+# 2026-07-02: 関心領域を「ENT全般 × High IF誌」から
+# 「DX・AI × 鼻副鼻腔」「DX・AI × 嚥下」の2トラックに転換。
+#
+# 各トラックは (ai_terms のいずれか) AND (domain_terms のいずれか) で
+# 組み立て、2トラックを OR で結合する（scripts/fetch_pubmed.py の
+# build_pubmed_query() が処理）。フィールド指定は旧クエリと同じ
+# [Title/Abstract] を踏襲。
+#
+# 生成されるクエリのイメージ:
+#   (
+#     ( ("artificial intelligence"[tiab] OR ...) AND ("rhinology"[tiab] OR ...) )
+#     OR
+#     ( ("artificial intelligence"[tiab] OR ...) AND ("dysphagia"[tiab] OR ...) )
+#   )
+#   AND (対象誌ブロック) AND (掲載日レンジ)
+#
+# 注意: config/journals_if.csv の journal 一覧（journal_block）と AND 結合
+# されるため、対象誌に載った論文のみ残る。ニッチな AI 論文を広く拾うには
+# journals_if.csv 側の拡張も要検討（DESIGN-paper-stock.md 参照）。
+# ============================================================
 
-if50_extra_terms:
-  - cancer
-  - allergy
-  - airway
-  - microbiome
-  - imaging
+# --- 旧クエリ（ENT全般・High IF）: 削除はせずコメントアウトで保持 ---
+# ent_keywords:
+#   - otolaryngology
+#   - otorhinolaryngology
+#   - head and neck cancer
+#   - head and neck neoplasms
+#   - thyroid cancer
+#   - salivary gland
+#   - rhinology
+#   - chronic rhinosinusitis
+#   - allergic rhinitis
+#   - airway
+#   - dysphagia
+#   - hearing loss
+#   - vestibular
+#   - vertigo
+#   - microbiome
+#   - artificial intelligence imaging
+#
+# if50_extra_terms:
+#   - cancer
+#   - allergy
+#   - airway
+#   - microbiome
+#   - imaging
+#   - artificial intelligence
+#   - hearing
+#   - dysphagia
+
+# --- 新クエリ: DX・AI × 2トラック ---
+# DX・AI 側の共通ワード（両トラックで使い回す）
+ai_terms:
   - artificial intelligence
-  - hearing
-  - dysphagia
+  - machine learning
+  - deep learning
+  - digital health
+
+tracks:
+  # トラック1: DX・AI × 鼻副鼻腔領域
+  - name: rhinology_dx
+    domain_terms:
+      - rhinology
+      - sinusitis
+      - nasal surgery
+      - endoscopic sinus surgery
+
+  # トラック2: DX・AI × 嚥下領域
+  - name: dysphagia_dx
+    domain_terms:
+      - dysphagia
+      - swallowing
+      - deglutition

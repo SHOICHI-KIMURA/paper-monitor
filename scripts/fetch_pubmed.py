@@ -29,6 +29,37 @@ class Paper:
         return asdict(self)
 
 
+def _or_block(terms: Iterable[str]) -> str:
+    """語のリストを "..."[Title/Abstract] の OR ブロックに変換する。"""
+    parts = [f'"{t}"[Title/Abstract]' for t in terms if t]
+    return " OR ".join(parts)
+
+
+def build_keyword_block(config: dict) -> str:
+    """キーワード部分（journal・日付を除く）のクエリブロックを組み立てる。
+
+    新方式（tracks + ai_terms）が定義されていれば、各トラックを
+      ( (ai_terms の OR) AND (domain_terms の OR) )
+    として組み立て、全トラックを OR で結合する。
+
+    tracks が無い場合は旧方式（ent_keywords + if50_extra_terms をまとめて OR）
+    にフォールバックする。
+    """
+    tracks = config.get("tracks") or []
+    ai_terms = config.get("ai_terms") or []
+    if tracks and ai_terms:
+        ai_block = _or_block(ai_terms)
+        track_blocks = []
+        for track in tracks:
+            domain_block = _or_block(track.get("domain_terms", []))
+            if domain_block:
+                track_blocks.append(f"(({ai_block}) AND ({domain_block}))")
+        return " OR ".join(track_blocks)
+
+    # --- 旧方式フォールバック ---
+    return _or_block(list(config.get("ent_keywords", [])) + list(config.get("if50_extra_terms", [])))
+
+
 def build_pubmed_query(config: dict, journals: Iterable[str], run_date: date | None = None) -> str:
     run_date = run_date or date.today()
     lookback_days = int(config.get("lookback_days", 7))
@@ -36,11 +67,8 @@ def build_pubmed_query(config: dict, journals: Iterable[str], run_date: date | N
     end = run_date
 
     journal_terms = [f'"{j}"[Journal]' for j in journals if j]
-    keyword_terms = [f'"{k}"[Title/Abstract]' for k in config.get("ent_keywords", [])]
-    if50_extra_terms = [f'"{k}"[Title/Abstract]' for k in config.get("if50_extra_terms", [])]
-
     journal_block = " OR ".join(journal_terms)
-    keyword_block = " OR ".join(keyword_terms + if50_extra_terms)
+    keyword_block = build_keyword_block(config)
     date_block = f'("{start:%Y/%m/%d}"[Date - Publication] : "{end:%Y/%m/%d}"[Date - Publication])'
 
     if journal_block and keyword_block:
