@@ -11,6 +11,21 @@ import requests
 LOGGER = logging.getLogger(__name__)
 GEMINI_URL_TEMPLATE = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
+# モデル名起因の障害(400/404)に備えたフォールバック順。
+# 先頭の -latest エイリアスはGoogle側のモデル改廃に自動追従する。
+_FALLBACK_MODELS = ["gemini-flash-latest", "gemini-3-flash", "gemini-2.5-flash"]
+_active_model: str | None = None
+
+
+def _candidate_models(preferred: str | None = None) -> list[str]:
+    configured = (os.getenv("GEMINI_MODEL") or "").strip()
+    ordered = [preferred, _active_model, configured, *_FALLBACK_MODELS]
+    candidates: list[str] = []
+    for name in ordered:
+        if name and name not in candidates:
+            candidates.append(name)
+    return candidates
+
 ALLOWED = {
     "ent_relevance": {"high", "middle", "low"},
     "category": {
@@ -66,11 +81,11 @@ Abstract:
 
 
 def classify_paper(paper: dict, model: str | None = None) -> dict[str, Any]:
+    global _active_model
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY is not set")
 
-    model = model or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     prompt = USER_TEMPLATE.format(
         pmid=paper.get("pmid", ""),
         title=paper.get("title", ""),
@@ -80,36 +95,46 @@ def classify_paper(paper: dict, model: str | None = None) -> dict[str, Any]:
     )
 
     last_error: Exception | None = None
-    for attempt in range(1, 4):
-        try:
-            response = requests.post(
-                GEMINI_URL_TEMPLATE.format(model=model),
-                headers={
-                    "Content-Type": "application/json",
-                    "x-goog-api-key": api_key,
-                },
-                json={
-                    "contents": [
-                        {"parts": [{"text": f"{SYSTEM_PROMPT}\n\n{prompt}"}]}
-                    ],
-                    "generationConfig": {
-                        "temperature": 0.1,
-                        "response_mime_type": "application/json",
+    for candidate in _candidate_models(preferred=model):
+        for attempt in range(1, 4):
+            try:
+                response = requests.post(
+                    GEMINI_URL_TEMPLATE.format(model=candidate),
+                    headers={
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": api_key,
                     },
-                },
-                timeout=60,
-            )
-            response.raise_for_status()
-            content = _extract_gemini_text(response.json())
-            return _validate_classification(_loads_json(content))
-        except Exception as exc:
-            last_error = exc
-            LOGGER.warning(
-                "Gemini classification failed for PMID=%s attempt=%s: %s",
-                paper.get("pmid"),
-                attempt,
-                exc,
-            )
+                    json={
+                        "contents": [
+                            {"parts": [{"text": f"{SYSTEM_PROMPT}\n\n{prompt}"}]}
+                        ],
+                        "generationConfig": {
+                            "temperature": 0.1,
+                            "response_mime_type": "application/json",
+                        },
+                    },
+                    timeout=60,
+                )
+                response.raise_for_status()
+                content = _extract_gemini_text(response.json())
+                result = _validate_classification(_loads_json(content))
+                if candidate != _active_model:
+                    LOGGER.info("Gemini model resolved to %s", candidate)
+                    _active_model = candidate
+                return result
+            except Exception as exc:
+                last_error = exc
+                LOGGER.warning(
+                    "Gemini classification failed for PMID=%s model=%s attempt=%s: %s",
+                    paper.get("pmid"),
+                    candidate,
+                    attempt,
+                    exc,
+                )
+                status = getattr(getattr(exc, "response", None), "status_code", None)
+                if status in (400, 404):
+                    # モデル名起因(廃止・改名)の可能性が高いのでリトライせず次の候補へ
+                    break
     raise RuntimeError(f"Gemini classification failed after retries: {last_error}") from last_error
 
 

@@ -9,6 +9,21 @@ GitHubリポジトリ: `SHOICHI-KIMURA/paper-monitor`
 
 ---
 
+## 🟢 2026-07-02 稼働ステータス（このセクションが最新の真実）
+
+当日の調査で「未稼働」は誤りと判明。**v1は2026年5月から毎週稼働しており、6/27にGemini APIのモデル廃止（400エラー）で故障**していた。同日夜に以下を実施済み：
+
+- Secrets: 全6項目設定済み（NOTION_TOKEN / GEMINI_API_KEY / LINE_CHANNEL_TOKEN は5月から有効なものを流用。NOTION_DATABASE_ID は既存の正本DBに向け直し済み。DIGEST_BASE_URL 設定済み。NCBI_API_KEY は未設定＝任意）
+- GitHub Pages: 有効化済み（https://shoichi-kimura.github.io/paper-monitor/）
+- 書き込み先の正本DB: **📚 DB-ENT High IF Paper Monitor**（`e7427fbec1764fc9922066d4552fb884`）。morning-routine・/pubmed-weekly が参照する「Paper Monitor DB」と同一。**下のステップ1（DB新規作成）は実行禁止**（重複DBを作ってしまうため。手順は参考として残置）
+- Geminiモデル: `gemini-flash-latest` に変更＋モデル廃止時の自動フォールバック機構を実装（scripts/llm_classify.py）
+- 失敗時のLINE通知ステップを追加（気づける最小運用）
+- v1のコードはブランチ `v1-archive` に保全
+
+以下の手順書は「ゼロから再構築する場合」の参考資料。通常運用で使うのは「ステップ6: 手動テスト実行」「停止方法」のみ。
+
+---
+
 ## 事前確認（このドキュメント作成時点の静的チェック結果）
 
 コードとSETUP.md/README.mdを突き合わせた結果、致命的なバグは見つかりませんでした。以下は稼働前に知っておくとよい軽微な注意点です。

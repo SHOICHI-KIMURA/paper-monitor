@@ -28,6 +28,12 @@ def attach_if_metadata(papers: list[dict], journals: list[dict]) -> list[dict]:
         journal_key = normalize_journal(paper.get("journal", ""))
         meta = by_journal.get(journal_key)
         if not meta:
+            # PubMedの正式誌名に副題（" : official journal of ..."）が付く誌への対応
+            meta = next(
+                (row for row in journals if journal_key.startswith(row["normalized_journal"] + " :")),
+                None,
+            )
+        if not meta:
             continue
         enriched = {
             **paper,

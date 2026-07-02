@@ -16,7 +16,7 @@ jobs:
       NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
       NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      GEMINI_MODEL: gemini-2.5-flash
+      GEMINI_MODEL: gemini-flash-latest
       LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
       DIGEST_BASE_URL: ${{ secrets.DIGEST_BASE_URL }}
       DIGEST_OUTPUT_DIR: outputs/
@@ -43,3 +43,11 @@ jobs:
           git add docs/
           git diff --cached --quiet || git commit -m "Update weekly ENT paper digest"
           git push
+
+      - name: Notify failure via LINE
+        if: failure()
+        run: |
+          curl -sS -X POST https://api.line.me/v2/bot/message/broadcast \
+            -H "Authorization: Bearer ${LINE_CHANNEL_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"messages":[{"type":"text","text":"⚠️ paper-monitor週次実行が失敗しました。GitHub Actionsのログを確認してください。"}]}' || true
