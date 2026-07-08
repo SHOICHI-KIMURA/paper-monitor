@@ -47,6 +47,15 @@ def attach_if_metadata(papers: list[dict], journals: list[dict]) -> list[dict]:
     return matched
 
 
+def tag_ai_dx(papers: list[dict], ai_terms: list[str]) -> list[dict]:
+    """タイトル・抄録にAI/DX関連語が含まれるかだけを見てタグを立てる（収集条件には使わない）。"""
+    terms = [t.lower() for t in ai_terms if t]
+    for paper in papers:
+        haystack = f"{paper.get('title', '')} {paper.get('abstract', '')}".lower()
+        paper["ai_dx"] = any(term in haystack for term in terms)
+    return papers
+
+
 def keep_after_classification(paper: dict) -> bool:
     tier = paper.get("tier")
     if tier == "IF50":

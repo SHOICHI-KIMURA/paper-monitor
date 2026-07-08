@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from scripts.digest_publish import publish_digest
 from scripts.digest_render import render_digest
 from scripts.fetch_pubmed import fetch_pubmed
-from scripts.if_filter import attach_if_metadata, keep_after_classification, load_journals
+from scripts.if_filter import attach_if_metadata, keep_after_classification, load_journals, tag_ai_dx
 from scripts.line_messaging import notify_line
 from scripts.llm_classify import classify_papers
 from scripts.notion_save import save_papers_to_notion
@@ -33,6 +33,7 @@ def main() -> None:
 
     logger.info("Fetching PubMed records")
     papers = fetch_pubmed(keywords, [row["journal"] for row in journals])
+    tag_ai_dx(papers, keywords.get("ai_terms", []))
 
     logger.info("Filtering by configured journal IF")
     if_matched = attach_if_metadata(papers, journals)

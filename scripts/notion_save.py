@@ -92,6 +92,7 @@ def _properties(paper: dict) -> dict:
         "Recommendation": {"select": {"name": classification.get("recommendation", "スキップ")}},
         "Japanese Summary": {"rich_text": [{"text": {"content": _clip(summary, 1900)}}]},
         "Why Important": {"rich_text": [{"text": {"content": _clip(why, 1900)}}]},
+        "AI/DX": {"checkbox": bool(paper.get("ai_dx"))},
     }
     if paper.get("pub_date") and len(paper["pub_date"]) >= 10:
         properties["Published Date"] = {"date": {"start": paper["pub_date"][:10]}}

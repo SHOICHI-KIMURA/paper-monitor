@@ -4,76 +4,45 @@ lookback_days: 7
 # ============================================================
 # 検索クエリ（PubMedキーワード）
 # ------------------------------------------------------------
-# 2026-07-02: 関心領域を「ENT全般 × High IF誌」から
-# 「DX・AI × 鼻副鼻腔」「DX・AI × 嚥下」の2トラックに転換。
+# 2026-07-06: 「DX・AI × 鼻副鼻腔/嚥下」の2トラックAND方式が
+# 直近7日で0件連発（AI語×ドメイン語の同時ヒットは狭すぎた）と判明し、
+# 「耳鼻科全域を広く収集し、AI/DX関連は目印を付けて優先表示する」
+# 方式に転換。収集条件からAI/DX限定は外した。
 #
-# 各トラックは (ai_terms のいずれか) AND (domain_terms のいずれか) で
-# 組み立て、2トラックを OR で結合する（scripts/fetch_pubmed.py の
-# build_pubmed_query() が処理）。フィールド指定は旧クエリと同じ
-# [Title/Abstract] を踏襲。
+# domain_terms（OR結合）が収集条件そのもの。対象誌ブロック・掲載日
+# レンジと AND 結合される（scripts/fetch_pubmed.py の
+# build_pubmed_query() が処理）。
 #
-# 生成されるクエリのイメージ:
-#   (
-#     ( ("artificial intelligence"[tiab] OR ...) AND ("rhinology"[tiab] OR ...) )
-#     OR
-#     ( ("artificial intelligence"[tiab] OR ...) AND ("dysphagia"[tiab] OR ...) )
-#   )
-#   AND (対象誌ブロック) AND (掲載日レンジ)
-#
-# 注意: config/journals_if.csv の journal 一覧（journal_block）と AND 結合
-# されるため、対象誌に載った論文のみ残る。ニッチな AI 論文を広く拾うには
-# journals_if.csv 側の拡張も要検討（DESIGN-paper-stock.md 参照）。
+# ai_terms は収集条件には使わない。ヒットした論文のタイトル・抄録に
+# これらの語が含まれるかだけを見て「AI/DX」チェックボックスを立てる
+# ためのタグ付け用リスト（scripts/if_filter.py の tag_ai_dx()）。
 # ============================================================
 
-# --- 旧クエリ（ENT全般・High IF）: 削除はせずコメントアウトで保持 ---
-# ent_keywords:
-#   - otolaryngology
-#   - otorhinolaryngology
-#   - head and neck cancer
-#   - head and neck neoplasms
-#   - thyroid cancer
-#   - salivary gland
-#   - rhinology
-#   - chronic rhinosinusitis
-#   - allergic rhinitis
-#   - airway
-#   - dysphagia
-#   - hearing loss
-#   - vestibular
-#   - vertigo
-#   - microbiome
-#   - artificial intelligence imaging
-#
-# if50_extra_terms:
-#   - cancer
-#   - allergy
-#   - airway
-#   - microbiome
-#   - imaging
-#   - artificial intelligence
-#   - hearing
-#   - dysphagia
+domain_terms:
+  - otolaryngology
+  - otorhinolaryngology
+  - head and neck cancer
+  - head and neck neoplasms
+  - thyroid cancer
+  - salivary gland
+  - rhinology
+  - chronic rhinosinusitis
+  - sinusitis
+  - nasal surgery
+  - endoscopic sinus surgery
+  - allergic rhinitis
+  - airway
+  - dysphagia
+  - swallowing
+  - deglutition
+  - hearing loss
+  - vestibular
+  - vertigo
+  - microbiome
 
-# --- 新クエリ: DX・AI × 2トラック ---
-# DX・AI 側の共通ワード（両トラックで使い回す）
+# AI/DXタグ付け用（収集条件ではない）
 ai_terms:
   - artificial intelligence
   - machine learning
   - deep learning
   - digital health
-
-tracks:
-  # トラック1: DX・AI × 鼻副鼻腔領域
-  - name: rhinology_dx
-    domain_terms:
-      - rhinology
-      - sinusitis
-      - nasal surgery
-      - endoscopic sinus surgery
-
-  # トラック2: DX・AI × 嚥下領域
-  - name: dysphagia_dx
-    domain_terms:
-      - dysphagia
-      - swallowing
-      - deglutition

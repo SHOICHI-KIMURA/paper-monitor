@@ -38,26 +38,11 @@ def _or_block(terms: Iterable[str]) -> str:
 def build_keyword_block(config: dict) -> str:
     """キーワード部分（journal・日付を除く）のクエリブロックを組み立てる。
 
-    新方式（tracks + ai_terms）が定義されていれば、各トラックを
-      ( (ai_terms の OR) AND (domain_terms の OR) )
-    として組み立て、全トラックを OR で結合する。
-
-    tracks が無い場合は旧方式（ent_keywords + if50_extra_terms をまとめて OR）
-    にフォールバックする。
+    domain_terms（耳鼻科ドメイン語）の OR ブロックが収集条件そのもの。
+    ai_terms は収集条件には使わない（scripts.if_filter.tag_ai_dx で
+    ヒット後のタグ付けにのみ使う）。
     """
-    tracks = config.get("tracks") or []
-    ai_terms = config.get("ai_terms") or []
-    if tracks and ai_terms:
-        ai_block = _or_block(ai_terms)
-        track_blocks = []
-        for track in tracks:
-            domain_block = _or_block(track.get("domain_terms", []))
-            if domain_block:
-                track_blocks.append(f"(({ai_block}) AND ({domain_block}))")
-        return " OR ".join(track_blocks)
-
-    # --- 旧方式フォールバック ---
-    return _or_block(list(config.get("ent_keywords", [])) + list(config.get("if50_extra_terms", [])))
+    return _or_block(config.get("domain_terms") or [])
 
 
 def build_pubmed_query(config: dict, journals: Iterable[str], run_date: date | None = None) -> str:
