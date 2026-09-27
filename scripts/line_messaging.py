@@ -19,6 +19,11 @@ def notify_line(digest_url: str, papers: list[dict]) -> None:
         if (paper.get("classification") or {}).get("recommendation") == "必読"
     ][:3]
     lines = ["今週のPaper Digest", digest_url]
+    notion_failures = sum(
+        1 for paper in papers if paper.get("notion_status") == "failed"
+    )
+    if notion_failures:
+        lines.append(f"⚠️ Notion保存失敗: {notion_failures}件（Digestは作成済み）")
     lines.extend(f"- {paper.get('title', '')}" for paper in must_reads)
     message = "\n".join(lines)
 

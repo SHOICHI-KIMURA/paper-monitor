@@ -46,16 +46,22 @@ def main() -> None:
     logger.info("Keeping %d/%d classified papers", len(candidates), len(classified))
 
     logger.info("Saving to Notion")
-    saved = save_papers_to_notion(candidates) if candidates else []
+    if candidates:
+        try:
+            save_papers_to_notion(candidates)
+        except Exception:
+            logger.exception("Notion save failed unexpectedly; continuing with digest and LINE")
+            for paper in candidates:
+                paper.setdefault("notion_status", "failed")
 
     logger.info("Rendering digest")
-    digest_path = render_digest(saved)
+    digest_path = render_digest(candidates)
 
     logger.info("Publishing digest")
     digest_url = publish_digest(digest_path)
 
     logger.info("Sending LINE notification")
-    notify_line(digest_url, saved)
+    notify_line(digest_url, candidates)
 
     logger.info("Done")
 

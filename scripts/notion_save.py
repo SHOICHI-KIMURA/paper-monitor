@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 
 import requests
 
 LOGGER = logging.getLogger(__name__)
 NOTION_API_BASE = "https://api.notion.com/v1"
 NOTION_VERSION = "2022-06-28"
+MAX_ATTEMPTS = 3
+RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
 def save_papers_to_notion(papers: list[dict]) -> list[dict]:
@@ -15,25 +18,30 @@ def save_papers_to_notion(papers: list[dict]) -> list[dict]:
     if not database_id:
         raise RuntimeError("NOTION_DATABASE_ID is not set")
 
-    saved = []
+    results = []
     for paper in papers:
         pmid = paper.get("pmid", "")
         if not pmid:
+            paper["notion_status"] = "skipped"
+            results.append(paper)
             continue
-        if _exists(database_id, pmid):
-            LOGGER.info("Skipping duplicate PMID=%s", pmid)
-            paper["notion_status"] = "duplicate"
-            saved.append(paper)
-            continue
-        _create_page(database_id, paper)
-        paper["notion_status"] = "created"
-        saved.append(paper)
-        LOGGER.info("Created Notion page for PMID=%s", pmid)
-    return saved
+        try:
+            if _exists(database_id, pmid):
+                LOGGER.info("Skipping duplicate PMID=%s", pmid)
+                paper["notion_status"] = "duplicate"
+            else:
+                _create_page(database_id, paper)
+                paper["notion_status"] = "created"
+                LOGGER.info("Created Notion page for PMID=%s", pmid)
+        except requests.RequestException:
+            paper["notion_status"] = "failed"
+            LOGGER.exception("Failed to save PMID=%s to Notion; continuing", pmid)
+        results.append(paper)
+    return results
 
 
 def _exists(database_id: str, pmid: str) -> bool:
-    response = requests.post(
+    response = _post_with_retry(
         f"{NOTION_API_BASE}/databases/{database_id}/query",
         headers=_headers(),
         json={
@@ -43,23 +51,47 @@ def _exists(database_id: str, pmid: str) -> bool:
             },
             "page_size": 1,
         },
-        timeout=30,
     )
-    response.raise_for_status()
     return bool(response.json().get("results"))
 
 
 def _create_page(database_id: str, paper: dict) -> None:
-    response = requests.post(
+    _post_with_retry(
         f"{NOTION_API_BASE}/pages",
         headers=_headers(),
         json={
             "parent": {"database_id": database_id},
             "properties": _properties(paper),
         },
-        timeout=30,
     )
-    response.raise_for_status()
+
+
+def _post_with_retry(url: str, **kwargs) -> requests.Response:
+    kwargs.setdefault("timeout", 30)
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            response = requests.post(url, **kwargs)
+            if response.status_code not in RETRYABLE_STATUS_CODES:
+                response.raise_for_status()
+                return response
+            response.raise_for_status()
+        except (requests.Timeout, requests.ConnectionError, requests.HTTPError) as exc:
+            retryable = not isinstance(exc, requests.HTTPError) or (
+                exc.response is not None
+                and exc.response.status_code in RETRYABLE_STATUS_CODES
+            )
+            if not retryable or attempt == MAX_ATTEMPTS:
+                raise
+            delay = 2 ** (attempt - 1)
+            LOGGER.warning(
+                "Notion request failed (attempt %d/%d); retrying in %ds: %s",
+                attempt,
+                MAX_ATTEMPTS,
+                delay,
+                exc,
+            )
+            time.sleep(delay)
+    raise RuntimeError("Notion retry loop exited unexpectedly")
 
 
 def _headers() -> dict:
